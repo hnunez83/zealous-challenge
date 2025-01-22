@@ -1,0 +1,82 @@
+name: Zealous challenge - Deploy to Amazon EKS with Helm
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Amazon EKS
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Build Docker image
+      - name: Build and Push Docker Image
+        run: |
+          echo "Logging into Amazon ECR..."
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin 891376942769.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          echo "Building Docker image..."
+          docker build -t hello-world-repo:latest .
+          echo "Tagging Docker image..."
+          docker tag hello-world-repo:latest 891376942769.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/hello-world-repo:latest
+          echo "Pushing Docker image to ECR..."
+          docker push 891376942769.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/hello-world-repo:latest
+
+      # Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Authenticate with EKS cluster
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name eks-cluster-zealous
+
+      # Install Helm
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      # Deploy application with Helm
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install hello-world ./hello-world-release/ 
+
+      # Post-deployment validation
+      - name: Wait for Initial Delay
+        run: |
+          INITIAL_DELAY_SECONDS=10  # Adjust based on your readiness probe configuration
+          echo "Waiting for $INITIAL_DELAY_SECONDS seconds before validation..."
+          sleep $INITIAL_DELAY_SECONDS
+
+      - name: Validate Readiness and Liveness Probes via Ingress
+        run: |
+          APP_ENDPOINT=$(kubectl get ingress minimal-ingress -n application-ns -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Validating Ingress Endpoint..."
+          if [ -z "$APP_ENDPOINT" ]; then
+            echo "Ingress endpoint is not available yet."
+            exit 1
+          fi
+          echo "Ingress endpoint resolved: http://$APP_ENDPOINT"
+          echo "Checking readiness at root path..."
+          curl -s http://$APP_ENDPOINT:8080/ || (echo "Readiness probe failed at root path." && exit 1)
+          echo "Checking liveness at /health path..."
+          curl -s http://$APP_ENDPOINT:8080/health || (echo "Liveness probe failed at /health path." && exit 1)
+          echo "Ingress validation passed."
+
+      # Verify application endpoint
+      - name: Verify Application Access
+        run: |
+          APP_ENDPOINT=$(kubectl get ingress minimal-ingress -n application-ns -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Application is accessible at: http://$APP_ENDPOINT"
