@@ -70,6 +70,18 @@ jobs:
           echo "Waiting for $INITIAL_DELAY_SECONDS seconds before validation..."
           sleep $INITIAL_DELAY_SECONDS
 
+      - name: Validate Rollout and Rollback
+        run: |
+          echo "Checking rollout status..."
+          if ! kubectl rollout status deployment/hello-world-deployment -n application-ns --timeout=120s; then
+            echo "Rollout failed. Initiating rollback..."
+            kubectl rollout undo deployment/hello-world-deployment -n application-ns
+            echo "Rollback initiated. Verifying..."
+            kubectl rollout status deployment/hello-world-deployment -n application-ns --timeout=120s
+          else
+            echo "Rollout successful."
+          fi
+          
       - name: Validate Readiness and Liveness Probes via Ingress
         run: |
           APP_ENDPOINT=$(kubectl get ingress minimal-ingress -n application-ns -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
