@@ -52,7 +52,7 @@ jobs:
       # Deploy application with Helm
       - name: Deploy with Helm
         run: |
-          helm upgrade --install hello-world ./hello-world-release/ 
+          helm upgrade --install hello-world-app ./hello-world-release/ 
 
       # Post-deployment validation
       - name: Wait for Initial Delay
