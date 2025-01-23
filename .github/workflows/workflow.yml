@@ -1,4 +1,4 @@
-name: Zealous challenge - Deploy to Amazon EKS with Helm and Validation
+name: Zealous challenge - Deploy to Amazon EKS with Helm and Validation Rollout/Rollback
 
 on:
   push:
@@ -47,7 +47,6 @@ jobs:
       - name: Verify kubeconfig
         run: |
           kubectl config view
-          kubectl get nodes
 
       # Install Helm
       - name: Install Helm
@@ -81,7 +80,7 @@ jobs:
           else
             echo "Rollout successful."
           fi
-          
+
       - name: Validate Readiness and Liveness Probes via Ingress
         run: |
           APP_ENDPOINT=$(kubectl get ingress minimal-ingress -n application-ns -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
