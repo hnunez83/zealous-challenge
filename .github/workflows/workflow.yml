@@ -1,4 +1,4 @@
-name: Zealous challenge - Deploy to Amazon EKS with Helm
+name: Zealous challenge - Deploy to Amazon EKS with Helm and Validation
 
 on:
   push:
