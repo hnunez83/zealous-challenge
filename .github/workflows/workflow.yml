@@ -44,10 +44,19 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ secrets.AWS_DEFAULT_REGION }} --name eks-cluster-zealous
 
+      - name: Verify kubeconfig
+        run: |
+          kubectl config view
+          kubectl get nodes
+
       # Install Helm
       - name: Install Helm
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Verify Helm Access
+        run: |
+          helm list || echo "No releases found in application-ns namespace."
 
       # Deploy application with Helm
       - name: Deploy with Helm
